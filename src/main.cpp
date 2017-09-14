@@ -55,27 +55,26 @@ void setup() {
   //  rtc.setDOW(THURSDAY);
   //  rtc.setTime(17, 9, 0);
   //  rtc.setDate(14, 9, 2017);
-
   Serial.begin(9600);
-
 
   ds.begin();
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(fan, OUTPUT);
   pinMode(aktuatorUP, OUTPUT);
   pinMode(aktuatorDOWN, OUTPUT);
-//------------------------------------------------------------------------------
   digitalWrite(aktuatorDOWN,HIGH);
   digitalWrite(aktuatorUP,HIGH);
+
 }
 
 void dalas(){
     cel = ds.getTempC(sensor1);
     cel2 = ds.getTempC(sensor2);
-
     ds.requestTemperaturesByAddress(sensor1);
     ds.requestTemperaturesByAddress(sensor2);
 }
+
+
 void grad(){
 
   myOLED.clrScr();
@@ -120,13 +119,13 @@ if (millis()-frametime1 > interval) {
       t = rtc.getTime();
       switch (t.dow)
       {
-        case 1:     myOLED.print(String("GJYTLSKJR"), CENTER, 0);    break;
+        case 1:     myOLED.print(String("GJYTLSKJR"), CENTER, 0);       break;
         case 2:     myOLED.print(String("DSDNJHJR"), CENTER, 0);        break;
         case 3:     myOLED.print(String("CTHTLF"), CENTER, 0);          break;
-        case 4:     myOLED.print(String("XTNDTH"), CENTER, 0);        break;
-        case 5:     myOLED.print(String("GZNYBWZ"), CENTER, 0);        break;
-        case 6:     myOLED.print(String("CE<JNF"), CENTER, 0);        break;
-        case 7:     myOLED.print(String("YTLSKZ"), CENTER, 0);    break;
+        case 4:     myOLED.print(String("XTNDTH"), CENTER, 0);          break;
+        case 5:     myOLED.print(String("GZNYBWZ"), CENTER, 0);         break;
+        case 6:     myOLED.print(String("CE<JNF"), CENTER, 0);          break;
+        case 7:     myOLED.print(String("YTLSKZ"), CENTER, 0);          break;
       }
       String stringOne = rtc.getTimeStr();
       myOLED.setFont(MegaNumbers);
@@ -211,6 +210,7 @@ else{
 
 
 void dg(){
+
   int x_position;
   int y_position;
 
@@ -230,68 +230,59 @@ void dg(){
   x_position = analogRead(A2);
   y_position = analogRead(A3);
 
-//-----------------------------------------------------------------------------
 
-if (x_position > X_THRESHOLD_HIGH)
-{
+if (x_position > X_THRESHOLD_HIGH){
     x_direction = 1;
-  }
-
+}
 else if (x_position < X_THRESHOLD_LOW){
     x_direction = -1;
-  }
-
+}
 if (y_position > Y_THRESHOLD_HIGH){
     y_direction = 1;
-  }
-
-else if (y_position < Y_THRESHOLD_LOW) {
+}
+else if (y_position < Y_THRESHOLD_LOW){
     y_direction = -1;
-  }
-//------------------------------------------------------------------------------
-  if (x_direction == -1) {
-    if (y_direction == -1) {
-
-      }
-    else if (y_direction == 0) {
-
-        menupos++;
-      }
-    else {
-    // y_direction == 1
-
-     }
 }
 
-  else if (x_direction == 0) {
-    if (y_direction == -1) {
+if (x_direction == -1){
+    if (y_direction == -1){
+      }
+    else if (y_direction == 0){
+        menupos++;
+        }
+    else{
+    // y_direction == 1
+       }
+}
+
+else if (x_direction == 0){
+     if (y_direction == -1){
         if(menu == 2){
             zadtemp--;
             EEPROM.write(1,zadtemp);
         }
 }
-  else if (y_direction == 0) {
+else if (y_direction == 0){
           }
-  else {
-  if(menu == 2){
+else {
+     if(menu == 2){
           zadtemp++;
           EEPROM.write(1,zadtemp);
           }// y_direction == 1
        }
 }
 
-  else {
+else {
     // x_direction == 1
-    if (y_direction == -1) {
-                            }
-    else if (y_direction == 0) {
+     if (y_direction == -1){
+        }
+     else if (y_direction == 0){
             menupos--;
-    }
-    else {
-// y_direction == 1
+             }
+     else {
+      }
 }
-     }
-//------------------------------------------------------------------------------
+
      if (menupos == 1){
         menu = menu + 1;
                      }
@@ -306,8 +297,6 @@ else if (y_position < Y_THRESHOLD_LOW) {
        menu = 0;
      }
 }
-//------------------------------------------------------------------------------
-
 
 void  fann(){
 
@@ -364,19 +353,19 @@ switch (raznicatemp) {
     break;
   case -9:
     fanspeed = fanspeed - fanstep*11;
-   break;
+    break;
   case -10:
     fanspeed = 0;
-   break;
+    break;
   case 1://зима
     fanspeed = 255;
-   break;
+    break;
   case 2:
-      fanspeed = fanspeed - fanstep*3;
+    fanspeed = fanspeed - fanstep*3;
    break;
   case 3:
     fanspeed = fanspeed - fanstep*4;
-   break;
+  break;
   case 4:
     fanspeed = fanspeed - fanstep*5;
    break;
@@ -401,59 +390,50 @@ switch (raznicatemp) {
   default:
       fanspeed = 255;
   }
-Serial.println(raznicatemp);
-Serial.println();
-Serial.println(fanspeed);
-
 if (raznicatemp <= -4){
   vent = true;
-  Serial.println("vent true");
 }
 if (raznicatemp >= -3){
   vent = false;
-  Serial.println("vent false");
 }
 
 if (vent == true && leto == false && winter == true&& zaslonkstatus == false){
 
-   if (millis() - zaslonkatime > 500 && produv == true){
-
-     zaslonkatime = millis();
-
+     if (millis() - zaslonkatime > 500 && produv == true){
+         zaslonkatime = millis();
      if (zaslonka == true){
-       zaslonka = false;
-       digitalWrite(aktuatorDOWN,LOW);
+         zaslonka = false;
+        digitalWrite(aktuatorDOWN,LOW);
      }
      else{
-       zaslonka = false;
-       digitalWrite(aktuatorDOWN,HIGH);
-       zaslonkstatus = true;
-       produv = false;
-     }
-   }
+        zaslonka = false;
+        digitalWrite(aktuatorDOWN,HIGH);
+        zaslonkstatus = true;
+        produv = false;
+        }
+    }
 
-   if (millis() - produvstart > produvtime){
+    if (millis() - produvstart > produvtime){
      produvstart = millis();
      produv = true;
      zaslonka = true;
    }
 }
-   if (vent == false && leto == false && winter == true&& zaslonkstatus == true){
+if (vent == false && leto == false && winter == true&& zaslonkstatus == true){
 
-      if (millis() - zaslonkatime > 500 && produv == true){
-
-        zaslonkatime = millis();
+        if (millis() - zaslonkatime > 500 && produv == true){
+            zaslonkatime = millis();
 
         if (zaslonka == true){
-          zaslonka = false;
+            zaslonka = false;
           digitalWrite(aktuatorUP,LOW);
         }
         else{
-          zaslonka = false;
-          digitalWrite(aktuatorUP,HIGH);
-          zaslonkstatus = false;
-          produv = false;
-        }
+            zaslonka = false;
+            digitalWrite(aktuatorUP,HIGH);
+            zaslonkstatus = false;
+            produv = false;
+           }
       }
 
       if (millis() - produvstart > produvtime){
@@ -461,19 +441,17 @@ if (vent == true && leto == false && winter == true&& zaslonkstatus == false){
         produv = true;
         zaslonka = true;
       }
-
-Serial.println("WORK");
 }
-
 analogWrite(fan,fanspeed);
-
 }
+
+
 void salon() {
-  myOLED.clrScr();
-  myOLED.setFont(UkrFont);
-  myOLED.print(String("PFLFYF NTVGTHFNEHF"),  CENTER,  0);
-  myOLED.setFont(MegaNumbers);
-  myOLED.print(String(zadtemp),  CENTER,  12);
+    myOLED.clrScr();
+    myOLED.setFont(UkrFont);
+    myOLED.print(String("PFLFYF NTVGTHFNEHF"),  CENTER,  0);
+    myOLED.setFont(MegaNumbers);
+    myOLED.print(String(zadtemp),  CENTER,  12);
   if(winter == true){
     myOLED.setFont(UkrFont);
     myOLED.print(String("Ghjuhsd Fdnj"),  CENTER,  57);
@@ -494,7 +472,7 @@ void m(){
  if (menu == 1){
   grad();
   EEPROM.write(2, menu);
- }
+  }
  if (menu == 2){
   salon();
   EEPROM.write(2, menu);

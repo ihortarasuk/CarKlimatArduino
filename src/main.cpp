@@ -11,20 +11,25 @@ extern uint8_t SmallFont[];
 unsigned long frametime1 = 0;
 unsigned int interval = 500;
 unsigned int intervalblink = 500;
+unsigned int produvtime = 5000;
 unsigned long blinktime = 0;
-
-
+unsigned long produvstart = 0;
+unsigned long zaslonkatime = 0;
 bool frametimeon = false;
 bool blinks= LOW;
 bool winter = false;
 bool leto = false;
+bool produv = false;
+bool vent = false;
+bool zaslonka = false;
+bool zaslonkstatus = false;
 
-bool sbros = false;
 unsigned short int fan = 11;
 int cel;
 int cel2;
 int aktuatorUP = 2;
 int aktuatorDOWN = 3;
+
 
 byte zadtemp = EEPROM.read(1);
 byte menu = EEPROM.read(2);
@@ -47,7 +52,13 @@ void setup() {
 
   myOLED.begin();
   rtc.halt(false);
+  //  rtc.setDOW(THURSDAY);
+  //  rtc.setTime(17, 9, 0);
+  //  rtc.setDate(14, 9, 2017);
+
   Serial.begin(9600);
+
+
   ds.begin();
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(fan, OUTPUT);
@@ -221,78 +232,71 @@ void dg(){
 
 //-----------------------------------------------------------------------------
 
-if (x_position > X_THRESHOLD_HIGH){
-                                  x_direction = 1;
+if (x_position > X_THRESHOLD_HIGH)
+{
+    x_direction = 1;
   }
 
 else if (x_position < X_THRESHOLD_LOW){
-                                  x_direction = -1;
+    x_direction = -1;
   }
 
 if (y_position > Y_THRESHOLD_HIGH){
-                                  y_direction = 1;
+    y_direction = 1;
   }
 
 else if (y_position < Y_THRESHOLD_LOW) {
-                                  y_direction = -1;
+    y_direction = -1;
   }
 //------------------------------------------------------------------------------
   if (x_direction == -1) {
     if (y_direction == -1) {
-                            Serial.println("left-down");
-                            }
-                            else if (y_direction == 0) {
-                                                        Serial.println("left");
-                                                        menupos++;
-                                                        }
-                                                         else {
-                                                                // y_direction == 1
-                                                                Serial.println("left-up");
-                                                              }
-  }
+
+      }
+    else if (y_direction == 0) {
+
+        menupos++;
+      }
+    else {
+    // y_direction == 1
+
+     }
+}
 
   else if (x_direction == 0) {
     if (y_direction == -1) {
-                            if(menu == 2){
-                              zadtemp--;
-                              EEPROM.write(1,zadtemp);
-                            }
-                            Serial.println("down");
-                            }
-                            else if (y_direction == 0) {
-
-                                                        Serial.println("centered");
-                                                        }
-                                                        else {
-                                                              if(menu == 2){
-                                                                zadtemp++;
-                                                                EEPROM.write(1,zadtemp);
-                                                              }// y_direction == 1
-                                                              Serial.println("up");
-                                                              }
+        if(menu == 2){
+            zadtemp--;
+            EEPROM.write(1,zadtemp);
+        }
+}
+  else if (y_direction == 0) {
+          }
+  else {
+  if(menu == 2){
+          zadtemp++;
+          EEPROM.write(1,zadtemp);
+          }// y_direction == 1
+       }
 }
 
   else {
     // x_direction == 1
     if (y_direction == -1) {
-                            Serial.println("right-down");
                             }
-                            else if (y_direction == 0) {
-                                                        Serial.println("right");
-                                                        menupos--;
-                                                      }
-                                                      else {
-                                                            // y_direction == 1
-                                                            Serial.println("right-up");
-
-                                                            }
+    else if (y_direction == 0) {
+            menupos--;
+    }
+    else {
+// y_direction == 1
+}
      }
 //------------------------------------------------------------------------------
      if (menupos == 1){
-                       menu = menu + 1;
+        menu = menu + 1;
                      }
      if (menupos == -1){
-                       menu = menu - 1;
+        menu = menu - 1;
                        }
      if (menu > 2){
        myOLED.clrScr();
@@ -308,24 +312,25 @@ else if (y_position < Y_THRESHOLD_LOW) {
 void  fann(){
 
 int  fanstep = 20;
-int raznicatemp = zadtemp - cel2;
+int  raznicatemp = zadtemp - cel2;
+
 byte fanspeed = 255;
 
-if (millis() > 3000 && millis() < 4000 && cel <= 10){
+if (millis() > 3000 && millis() < 4000 && cel <= 25){
 
   digitalWrite(aktuatorUP,LOW);
   winter = true;
 }
-if (millis() > 4000 && millis() < 5000 && cel <= 10){
+if (millis() > 4000 && millis() < 5000 && cel <= 25){
   digitalWrite(aktuatorUP,HIGH);
 }
 
-if (millis() > 3000 && millis() < 4000 && cel >= 11){
+if (millis() > 3000 && millis() < 4000 && cel >= 26){
 
   digitalWrite(aktuatorDOWN,LOW);
   leto = true;
 }
-if (millis() > 4000 && millis() < 5000 && cel >= 11){
+if (millis() > 4000 && millis() < 5000 && cel >= 26){
   digitalWrite(aktuatorDOWN,HIGH);
 }
 
@@ -333,7 +338,7 @@ if (millis() > 4000 && millis() < 5000 && cel >= 11){
 //digitalWrite(fan,0);// включений
 
 switch (raznicatemp) {
-  case -1:
+  case -1://Літо
     fanspeed = fanspeed - fanstep*3;
     break;
   case -2:
@@ -363,7 +368,7 @@ switch (raznicatemp) {
   case -10:
     fanspeed = 0;
    break;
-  case 1:
+  case 1://зима
     fanspeed = 255;
    break;
   case 2:
@@ -396,25 +401,73 @@ switch (raznicatemp) {
   default:
       fanspeed = 255;
   }
+Serial.println(raznicatemp);
+Serial.println();
+Serial.println(fanspeed);
+
+if (raznicatemp <= -4){
+  vent = true;
+  Serial.println("vent true");
+}
+if (raznicatemp >= -3){
+  vent = false;
+  Serial.println("vent false");
+}
+
+if (vent == true && leto == false && winter == true&& zaslonkstatus == false){
+
+   if (millis() - zaslonkatime > 500 && produv == true){
+
+     zaslonkatime = millis();
+
+     if (zaslonka == true){
+       zaslonka = false;
+       digitalWrite(aktuatorDOWN,LOW);
+     }
+     else{
+       zaslonka = false;
+       digitalWrite(aktuatorDOWN,HIGH);
+       zaslonkstatus = true;
+       produv = false;
+     }
+   }
+
+   if (millis() - produvstart > produvtime){
+     produvstart = millis();
+     produv = true;
+     zaslonka = true;
+   }
+}
+   if (vent == false && leto == false && winter == true&& zaslonkstatus == true){
+
+      if (millis() - zaslonkatime > 500 && produv == true){
+
+        zaslonkatime = millis();
+
+        if (zaslonka == true){
+          zaslonka = false;
+          digitalWrite(aktuatorUP,LOW);
+        }
+        else{
+          zaslonka = false;
+          digitalWrite(aktuatorUP,HIGH);
+          zaslonkstatus = false;
+          produv = false;
+        }
+      }
+
+      if (millis() - produvstart > produvtime){
+        produvstart = millis();
+        produv = true;
+        zaslonka = true;
+      }
+
+Serial.println("WORK");
+}
 
 analogWrite(fan,fanspeed);
-}
-
-
-void timer(long t, int intervals, bool x) {
-if (millis() - t > intervals){
-  t = millis();
-      if(x == false){
-        x  = true;
-      }
-      else{
-        x = false;
-      }
-}
 
 }
-
-
 void salon() {
   myOLED.clrScr();
   myOLED.setFont(UkrFont);

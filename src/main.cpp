@@ -15,6 +15,7 @@ unsigned int produvtime = 5000;
 unsigned long blinktime = 0;
 unsigned long produvstart = 0;
 unsigned long zaslonkatime = 0;
+
 bool frametimeon = false;
 bool blinks= LOW;
 bool winter = false;
@@ -25,10 +26,10 @@ bool zaslonka = false;
 bool zaslonkstatus = false;
 
 unsigned short int fan = 11;
-int cel;
-int cel2;
-int aktuatorUP = 2;
-int aktuatorDOWN = 3;
+unsigned short int cel;
+unsigned short int cel2;
+unsigned short int aktuatorUP = 2;
+unsigned short int aktuatorDOWN = 3;
 
 
 byte zadtemp = EEPROM.read(1);
@@ -300,8 +301,8 @@ else {
 
 void  fann(){
 
-int  fanstep = 20;
-int  raznicatemp = zadtemp - cel2;
+unsigned short int  fanstep = 20;
+               int  raznicatemp = zadtemp - cel2;
 
 byte fanspeed = 255;
 

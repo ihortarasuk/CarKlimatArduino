@@ -28,7 +28,7 @@ short int stepperval;
 short int pohibka;
 short int peremenS;
 short int stepmotor;
-byte zadtemp = EEPROM.read(1);
+byte zadtemp = 25;//EEPROM.read(1);
 byte menu = EEPROM.read(2);
 
 
@@ -41,10 +41,10 @@ double Setpoint, Input, Output;
 DallasTemperature ds(&oneWire);
 DeviceAddress sensor1 = {0x28, 0xFF, 0xA2, 0x81, 0x87, 0x16, 0x3, 0x12};
 DeviceAddress sensor2 = {0x28, 0xFF, 0x2F, 0xF3, 0x87, 0x16, 0x3, 0x9A};
-PID myPID(&Input, &Output, &Setpoint,15,10,3, DIRECT);//создаем ПИД-регулятор
+PID myPID(&Input, &Output, &Setpoint,30,100,3, REVERSE);//создаем ПИД-регулятор
 
 void setup() {
-  myPID.SetOutputLimits(0, 3400);
+  myPID.SetOutputLimits(-1500, 1500);
 
   myStepper.setSpeed(10);
   myOLED.begin();
@@ -57,14 +57,11 @@ void setup() {
   ds.begin();
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(fan, OUTPUT);
-  if (Setpoint<Input){//если начальная температура больше заданной
-  revers=true;
-  myPID.SetControllerDirection(revers);//ПИД-регулятор используем обратный
   myPID.SetMode(AUTOMATIC);
   }
 
 
-}
+
 
 void dalas(){
     cel = ds.getTempC(sensor1);
@@ -402,27 +399,8 @@ void m(){
   EEPROM.write(2, menu);
  }
 }
+
 void steps(){
-  if ((millis() >= 10000) && (pogoda == false)){
-
-      if (cel <= 18){
-        zagruzka();
-        winter = true;
-        leto = false;
-        pogoda = true;
-        myStepper.step(3500);
-      }
-      else if(cel >= 19){
-        zagruzka();
-        winter = false;
-        leto = true;
-        pogoda = true;
-        myStepper.step(-3500);
-      }
-}
-
-if (pogoda == true){
- if (leto == true) {
 
    pohibka = stepvalue - peremenS;
    stepvalue = stepvalue -  pohibka;
@@ -432,23 +410,17 @@ if (pogoda == true){
    //Serial.println(stepperval);
    Serial.println(stepvalue);
  }
+//myStepper.step(pohibka);
 
-}
-}
 void pidreg(){
   Input = cel2;
   Output = stepvalue;
   Setpoint = zadtemp;
   myPID.Compute();
   peremenS = Output;
-  //Serial.println(Input);
-  //Serial.println(Setpoint);
-//  Serial.println(Output);
-  if (Setpoint<Input){//если начальная температура больше заданной
-  revers=true;
-  myPID.SetControllerDirection(revers);//ПИД-регулятор используем обратный
-  }
-
+  Serial.println(Input);
+  Serial.println(Setpoint);
+  Serial.println(Output);
   }
 
 void loop() {
@@ -457,6 +429,7 @@ void loop() {
   m();
   fann();
   dalas();
-  steps();
   pidreg();
+  steps();
+   //myStepper.step(pohibka);
 }

@@ -5,6 +5,7 @@
 #include <EEPROM.h>
 #include <Stepper.h>
 #include <PID_v1.h>
+
 extern uint8_t UkrFont[];
 extern uint8_t MegaNumbers[];
 extern uint8_t SmallFont[];
@@ -13,22 +14,28 @@ unsigned long frametime1 = 0;
 unsigned int interval = 500;
 unsigned int intervalblink = 500;
 unsigned long blinktime = 0;
-bool revers = false;
 bool frametimeon = false;
 bool blinks= LOW;
 bool winter = false;
 bool leto = false;
 bool pogoda = false;
-
+const int steppoz = 2800;
 unsigned short int fan = 11;
 unsigned short int cel;
 unsigned short int cel2;
-short int stepvalue = 3700;
+short int stepvalue;
 short int stepperval;
 short int pohibka;
 short int peremenS;
 short int stepmotor;
-byte zadtemp = 25;//EEPROM.read(1);
+short int stepvalueold;
+
+short int stepA;
+short int stepB;
+short int stepC;
+
+byte zadtemp = 24
+;//EEPROM.read(1);
 byte menu = EEPROM.read(2);
 
 
@@ -41,26 +48,25 @@ double Setpoint, Input, Output;
 DallasTemperature ds(&oneWire);
 DeviceAddress sensor1 = {0x28, 0xFF, 0xA2, 0x81, 0x87, 0x16, 0x3, 0x12};
 DeviceAddress sensor2 = {0x28, 0xFF, 0x2F, 0xF3, 0x87, 0x16, 0x3, 0x9A};
-PID myPID(&Input, &Output, &Setpoint,30,100,3, REVERSE);//создаем ПИД-регулятор
+PID myPID(&Input, &Output, &Setpoint,30,100,3,REVERSE);//создаем ПИД-регулятор
 
 void setup() {
   myPID.SetOutputLimits(-1500, 1500);
-
   myStepper.setSpeed(10);
   myOLED.begin();
   rtc.halt(false);
-  //  rtc.setDOW(THURSDAY);
-  //  rtc.setTime(17, 9, 0);
-  //  rtc.setDate(14, 9, 2017);
+    //rtc.setDOW(FRIDAY);
+  //  rtc.setTime(20, 32, 0);
+  //  rtc.setDate(17,9, 2017);
   Serial.begin(9600);
 
   ds.begin();
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(fan, OUTPUT);
   myPID.SetMode(AUTOMATIC);
+
+
   }
-
-
 
 
 void dalas(){
@@ -246,7 +252,7 @@ else if (x_direction == 0){
      if (y_direction == -1){
         if(menu == 2){
             zadtemp--;
-            EEPROM.write(1,zadtemp);
+            EEPROM.update(1,zadtemp);
         }
 }
 else if (y_direction == 0){
@@ -254,7 +260,7 @@ else if (y_direction == 0){
 else {
      if(menu == 2){
           zadtemp++;
-          EEPROM.write(1,zadtemp);
+          EEPROM.update(1,zadtemp);
           }// y_direction == 1
        }
 }
@@ -388,28 +394,69 @@ void salon() {
 void m(){
   if (menu == 0){
   calendar();
-  EEPROM.write(2, menu);
+  EEPROM.update(2, menu);
   }
  if (menu == 1){
   grad();
-  EEPROM.write(2, menu);
+  EEPROM.update(2, menu);
   }
  if (menu == 2){
   salon();
-  EEPROM.write(2, menu);
+  EEPROM.update(2, menu);
  }
 }
 
+int EEPROMread(int addr){
+  byte raw[2];
+  for(byte i = 0; i < 2; i++) raw[i] = EEPROM.read(addr+i);
+  int &num = (int&)raw;
+  return num;
+}
+
+void EEPROMwrite(int addr, int num){
+  byte raw[4];
+  (int&)raw = num;
+   for(byte i = 0; i < 4; i++) EEPROM.write(addr+i, raw[i]);
+ }
+
+
 void steps(){
 
-   pohibka = stepvalue - peremenS;
-   stepvalue = stepvalue -  pohibka;
-   myStepper.step(pohibka);
 
-   Serial.println(pohibka);
-   //Serial.println(stepperval);
-   Serial.println(stepvalue);
- }
+  if(cel <=18){
+    winter = true;
+    leto = false;
+  }
+  if (cel >=19){
+    winter = false;
+    leto = true;
+    }
+
+if (stepvalue <= 2500 || stepvalue <= -2500){
+  digitalWrite( 9, LOW );
+  digitalWrite( 3, LOW );
+  digitalWrite( 2, LOW );
+  digitalWrite( 6, LOW );
+}
+int stepmotor = Output;
+stepmotor = map(stepmotor, -1500,1500,0,2800);
+stepB = EEPROMread(5);
+stepvalueold = EEPROMread(10);
+stepC = stepmotor - stepB;
+myStepper.step(stepC);
+stepB = stepB + stepC;
+
+
+if (stepB != stepvalueold){
+  EEPROMwrite(5,stepB);
+  stepvalueold = stepB;
+  EEPROMwrite(10, stepvalueold);
+}
+Serial.println(stepB);
+}
+
+
+
 //myStepper.step(pohibka);
 
 void pidreg(){
@@ -417,10 +464,9 @@ void pidreg(){
   Output = stepvalue;
   Setpoint = zadtemp;
   myPID.Compute();
-  peremenS = Output;
-  Serial.println(Input);
-  Serial.println(Setpoint);
-  Serial.println(Output);
+  //Serial.println(Input);
+  //Serial.println(Setpoint);
+  //Serial.println(Output);
   }
 
 void loop() {
@@ -431,5 +477,4 @@ void loop() {
   dalas();
   pidreg();
   steps();
-   //myStepper.step(pohibka);
 }

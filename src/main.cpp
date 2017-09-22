@@ -3,7 +3,8 @@
 #include <OLED_I2C.h>
 #include <DS1307.h>
 #include <EEPROM.h>
-
+#include <Stepper.h>
+#include <PID_v1.h>
 extern uint8_t UkrFont[];
 extern uint8_t MegaNumbers[];
 extern uint8_t SmallFont[];
@@ -11,46 +12,41 @@ extern uint8_t SmallFont[];
 unsigned long frametime1 = 0;
 unsigned int interval = 500;
 unsigned int intervalblink = 500;
-unsigned int produvtime = 5000;
 unsigned long blinktime = 0;
-unsigned long produvstart = 0;
-unsigned long zaslonkatime = 0;
-
+bool revers = false;
 bool frametimeon = false;
 bool blinks= LOW;
 bool winter = false;
 bool leto = false;
-bool produv = false;
-bool vent = false;
-bool zaslonka = false;
-bool zaslonkstatus = false;
+bool pogoda = false;
 
 unsigned short int fan = 11;
 unsigned short int cel;
 unsigned short int cel2;
-unsigned short int aktuatorUP = 2;
-unsigned short int aktuatorDOWN = 3;
-
-
+short int stepvalue = 3700;
+short int stepperval;
+short int pohibka;
+short int peremenS;
+short int stepmotor;
 byte zadtemp = EEPROM.read(1);
 byte menu = EEPROM.read(2);
-
 
 
 DS1307 rtc(A0, A1);
 Time t;
 OLED  myOLED(SDA, SCL, 8);
 OneWire oneWire(10); // вход датчиков 18b20
-
-
+Stepper myStepper(2048,9,3,2,6);
+double Setpoint, Input, Output;
 DallasTemperature ds(&oneWire);
 DeviceAddress sensor1 = {0x28, 0xFF, 0xA2, 0x81, 0x87, 0x16, 0x3, 0x12};
 DeviceAddress sensor2 = {0x28, 0xFF, 0x2F, 0xF3, 0x87, 0x16, 0x3, 0x9A};
-
-
+PID myPID(&Input, &Output, &Setpoint,15,10,3, DIRECT);//создаем ПИД-регулятор
 
 void setup() {
+  myPID.SetOutputLimits(0, 3400);
 
+  myStepper.setSpeed(10);
   myOLED.begin();
   rtc.halt(false);
   //  rtc.setDOW(THURSDAY);
@@ -61,10 +57,12 @@ void setup() {
   ds.begin();
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(fan, OUTPUT);
-  pinMode(aktuatorUP, OUTPUT);
-  pinMode(aktuatorDOWN, OUTPUT);
-  digitalWrite(aktuatorDOWN,HIGH);
-  digitalWrite(aktuatorUP,HIGH);
+  if (Setpoint<Input){//если начальная температура больше заданной
+  revers=true;
+  myPID.SetControllerDirection(revers);//ПИД-регулятор используем обратный
+  myPID.SetMode(AUTOMATIC);
+  }
+
 
 }
 
@@ -89,9 +87,6 @@ void grad(){
   myOLED.print(String("NTVGTHFNEHF CTYCJHSD"), CENTER, 57);
   myOLED.update();
 }
-
-
-
 
 void blink() {
   if(millis() - blinktime > intervalblink){
@@ -207,9 +202,6 @@ else{
     }
 }
 }
-
-
-
 void dg(){
 
   int x_position;
@@ -222,7 +214,7 @@ void dg(){
 
   int x_direction;
   int y_direction;
-  int menupos = 0;
+  int menupos = 0; //0
 
 
   x_direction = 0;
@@ -251,9 +243,6 @@ if (x_direction == -1){
     else if (y_direction == 0){
         menupos++;
         }
-    else{
-    // y_direction == 1
-       }
 }
 
 else if (x_direction == 0){
@@ -280,8 +269,6 @@ else {
      else if (y_direction == 0){
             menupos--;
              }
-     else {
-      }
 }
 
      if (menupos == 1){
@@ -305,25 +292,6 @@ unsigned short int  fanstep = 20;
                int  raznicatemp = zadtemp - cel2;
 
 byte fanspeed = 255;
-
-if (millis() > 3000 && millis() < 4000 && cel <= 25){
-
-  digitalWrite(aktuatorUP,LOW);
-  winter = true;
-}
-if (millis() > 4000 && millis() < 5000 && cel <= 25){
-  digitalWrite(aktuatorUP,HIGH);
-}
-
-if (millis() > 3000 && millis() < 4000 && cel >= 26){
-
-  digitalWrite(aktuatorDOWN,LOW);
-  leto = true;
-}
-if (millis() > 4000 && millis() < 5000 && cel >= 26){
-  digitalWrite(aktuatorDOWN,HIGH);
-}
-
 //  digitalWrite(fan,255);// виключений
 //digitalWrite(fan,0);// включений
 
@@ -391,62 +359,17 @@ switch (raznicatemp) {
   default:
       fanspeed = 255;
   }
-if (raznicatemp <= -4){
-  vent = true;
-}
-if (raznicatemp >= -3){
-  vent = false;
-}
-
-if (vent == true && leto == false && winter == true&& zaslonkstatus == false){
-
-     if (millis() - zaslonkatime > 500 && produv == true){
-         zaslonkatime = millis();
-     if (zaslonka == true){
-         zaslonka = false;
-        digitalWrite(aktuatorDOWN,LOW);
-     }
-     else{
-        zaslonka = false;
-        digitalWrite(aktuatorDOWN,HIGH);
-        zaslonkstatus = true;
-        produv = false;
-        }
-    }
-
-    if (millis() - produvstart > produvtime){
-     produvstart = millis();
-     produv = true;
-     zaslonka = true;
-   }
-}
-if (vent == false && leto == false && winter == true&& zaslonkstatus == true){
-
-        if (millis() - zaslonkatime > 500 && produv == true){
-            zaslonkatime = millis();
-
-        if (zaslonka == true){
-            zaslonka = false;
-          digitalWrite(aktuatorUP,LOW);
-        }
-        else{
-            zaslonka = false;
-            digitalWrite(aktuatorUP,HIGH);
-            zaslonkstatus = false;
-            produv = false;
-           }
-      }
-
-      if (millis() - produvstart > produvtime){
-        produvstart = millis();
-        produv = true;
-        zaslonka = true;
-      }
-}
 analogWrite(fan,fanspeed);
 }
 
+void zagruzka(){
+  myOLED.clrScr();
+  myOLED.setFont(UkrFont);
+  myOLED.print(String("GTHTDSHRF"),  CENTER,  20);
+  myOLED.print(String("CBCNTVB"),  CENTER,  40);
+  myOLED.update();
 
+}
 void salon() {
     myOLED.clrScr();
     myOLED.setFont(UkrFont);
@@ -479,14 +402,61 @@ void m(){
   EEPROM.write(2, menu);
  }
 }
+void steps(){
+  if ((millis() >= 10000) && (pogoda == false)){
 
+      if (cel <= 18){
+        zagruzka();
+        winter = true;
+        leto = false;
+        pogoda = true;
+        myStepper.step(3500);
+      }
+      else if(cel >= 19){
+        zagruzka();
+        winter = false;
+        leto = true;
+        pogoda = true;
+        myStepper.step(-3500);
+      }
+}
 
+if (pogoda == true){
+ if (leto == true) {
+
+   pohibka = stepvalue - peremenS;
+   stepvalue = stepvalue -  pohibka;
+   myStepper.step(pohibka);
+
+   Serial.println(pohibka);
+   //Serial.println(stepperval);
+   Serial.println(stepvalue);
+ }
+
+}
+}
+void pidreg(){
+  Input = cel2;
+  Output = stepvalue;
+  Setpoint = zadtemp;
+  myPID.Compute();
+  peremenS = Output;
+  //Serial.println(Input);
+  //Serial.println(Setpoint);
+//  Serial.println(Output);
+  if (Setpoint<Input){//если начальная температура больше заданной
+  revers=true;
+  myPID.SetControllerDirection(revers);//ПИД-регулятор используем обратный
+  }
+
+  }
 
 void loop() {
-
   blink();
   dg();
   m();
   fann();
   dalas();
+  steps();
+  pidreg();
 }

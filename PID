@@ -1,0 +1,60 @@
+#include //библиотека ПИД-ругулятора
+#include //библиотека серво привода
+#include
+#include
+#define ONE_WIRE_BUS 8
+OneWire oneWire (ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+double Setpoint, Input, Output;
+
+Servo myservo;//серво привод
+
+PID myPID(&Input, &Output, &Setpoint,15,1,3, DIRECT);//создаем ПИД-регулятор
+
+boolean revers;
+
+int valrez;//slava
+int output_old;
+void setup()
+{
+Serial.begin (9600);
+sensors.begin();
+
+Input = digitalRead(8);//читаем показания с датчика температуры ds18b20
+myPID.SetOutputLimits(0, 60);//устанавливаем границы выходного сигнала для ПИД-регулятора
+myPID.SetMode(AUTOMATIC);//включаем ПИД-регулятор
+
+if (Setpoint<Input)
+
+if (Setpoint<Input){//если начальная температура больше заданной
+revers=true;
+}
+myPID.SetControllerDirection(REVERSE);//ПИД-регулятор используем обратный
+}
+
+void loop()
+{
+valrez=analogRead(A0);//потенцеометр для уставки желаемой температуры в салоне
+Setpoint= map(valrez,0,1023,18,30);//читаем положение регулятора температуры(потенциометр)
+
+sensors.requestTemperatures();
+Input =(sensors.getTempCByIndex(0));//анализируем температуру салона,заданная температура в салоне автомобиля
+myPID.Compute();//считаем выходной сигнал ПИД-регулятора
+if (Output!=output_old){//если нужно управлять сервой
+myservo.attach(9,2540,640);//включаем серву на 9 цифровом пине.
+if (revers)//если пид регулятор обратный, то сервой управляем также относительно противоположной крайней точки
+myservo.write(60-Output);
+else
+myservo.write(Output);
+delay(1000);//ждем серву
+myservo.detach();//отключаемся от сервы.
+
+output_old=Output;
+}
+Serial.print("Output: ");
+Serial.print(Output);
+Serial.print(" Actual Temp: ");
+Serial.println(Input);
+Serial.print(" ystanovka t : ");
+Serial.println (Setpoint);
+}

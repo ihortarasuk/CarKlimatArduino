@@ -34,8 +34,7 @@ short int stepA;
 short int stepB;
 short int stepC;
 
-byte zadtemp = 24
-;//EEPROM.read(1);
+byte zadtemp = 45; //EEPROM.read(1);
 byte menu = EEPROM.read(2);
 
 
@@ -43,12 +42,12 @@ DS1307 rtc(A0, A1);
 Time t;
 OLED  myOLED(SDA, SCL, 8);
 OneWire oneWire(10); // вход датчиков 18b20
-Stepper myStepper(2048,9,3,2,6);
+Stepper myStepper(2048,4,3,2,6);
 double Setpoint, Input, Output;
 DallasTemperature ds(&oneWire);
 DeviceAddress sensor1 = {0x28, 0xFF, 0xA2, 0x81, 0x87, 0x16, 0x3, 0x12};
 DeviceAddress sensor2 = {0x28, 0xFF, 0x2F, 0xF3, 0x87, 0x16, 0x3, 0x9A};
-PID myPID(&Input, &Output, &Setpoint,30,100,3,REVERSE);//создаем ПИД-регулятор
+PID myPID(&Input, &Output, &Setpoint,30,100,10,REVERSE);//создаем ПИД-регулятор
 
 void setup() {
   myPID.SetOutputLimits(-1500, 1500);
@@ -63,9 +62,7 @@ void setup() {
   ds.begin();
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(fan, OUTPUT);
-  myPID.SetMode(AUTOMATIC);
-
-
+  myPID.SetMode(MANUAL);
   }
 
 
@@ -254,6 +251,9 @@ else if (x_direction == 0){
             zadtemp--;
             EEPROM.update(1,zadtemp);
         }
+        if(menu == 1){
+          myStepper.step(10);
+        }
 }
 else if (y_direction == 0){
           }
@@ -262,6 +262,9 @@ else {
           zadtemp++;
           EEPROM.update(1,zadtemp);
           }// y_direction == 1
+     if(menu == 1){
+       myStepper.step(10);
+          }
        }
 }
 
@@ -291,8 +294,8 @@ else {
 
 void  fann(){
 
-unsigned short int  fanstep = 20;
-               int  raznicatemp = zadtemp - cel2;
+unsigned short int  fanstep = 25;
+               int  raznicatemp = zadtemp - cel;
 
 byte fanspeed = 255;
 //  digitalWrite(fan,255);// виключений
@@ -317,18 +320,6 @@ switch (raznicatemp) {
   case -6:
     fanspeed = fanspeed - fanstep*8;
     break;
-  case -7:
-    fanspeed = fanspeed - fanstep*9;
-    break;
-  case -8:
-    fanspeed = fanspeed - fanstep*10;
-    break;
-  case -9:
-    fanspeed = fanspeed - fanstep*11;
-    break;
-  case -10:
-    fanspeed = 0;
-    break;
   case 1://зима
     fanspeed = 255;
     break;
@@ -347,20 +338,9 @@ switch (raznicatemp) {
   case 6:
     fanspeed = fanspeed - fanstep*7;
     break;
-  case 7:
-    fanspeed = fanspeed - fanstep*8;
-    break;
-  case 8:
-    fanspeed = fanspeed - fanstep*9;
-    break;
-  case 9:
-    fanspeed = fanspeed - fanstep*10;
-    break;
-  case 10:
-    fanspeed = 0;
-    break;
   default:
       fanspeed = 255;
+  Serial.println(fanspeed);
   }
 analogWrite(fan,fanspeed);
 }
@@ -421,8 +401,6 @@ void EEPROMwrite(int addr, int num){
 
 
 void steps(){
-
-
   if(cel <=18){
     winter = true;
     leto = false;
@@ -432,12 +410,7 @@ void steps(){
     leto = true;
     }
 
-if (stepvalue <= 2500 || stepvalue <= -2500){
-  digitalWrite( 9, LOW );
-  digitalWrite( 3, LOW );
-  digitalWrite( 2, LOW );
-  digitalWrite( 6, LOW );
-}
+
 int stepmotor = Output;
 stepmotor = map(stepmotor, -1500,1500,0,2800);
 stepB = EEPROMread(5);
@@ -451,30 +424,41 @@ if (stepB != stepvalueold){
   EEPROMwrite(5,stepB);
   stepvalueold = stepB;
   EEPROMwrite(10, stepvalueold);
+  digitalWrite( 4, LOW );
+  digitalWrite( 3, LOW );
+  digitalWrite( 2, LOW );
+  digitalWrite( 6, LOW );
 }
 Serial.println(stepB);
 }
-
-
-
-//myStepper.step(pohibka);
+////myStepper.step(pohibka);
 
 void pidreg(){
-  Input = cel2;
+  Input = cel;
   Output = stepvalue;
   Setpoint = zadtemp;
   myPID.Compute();
-  //Serial.println(Input);
-  //Serial.println(Setpoint);
-  //Serial.println(Output);
   }
 
 void loop() {
-  blink();
-  dg();
-  m();
-  fann();
+
+  if(millis() <= 3000){
+    zagruzka();
+  }
+  else{
+    blink();
+    dg();
+    m();
+  }
   dalas();
   pidreg();
   steps();
+  if(millis() > 80000){
+    myPID.SetMode(AUTOMATIC);
+  }
+  fann();
+
+  Serial.println(cel);
+  Serial.println(cel2);
+
 }

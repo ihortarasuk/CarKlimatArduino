@@ -5,64 +5,81 @@
 #include <EEPROM.h>
 #include <Stepper.h>
 #include <PID_v1.h>
-
+bool minutes = false;
+bool houres = false;
 extern uint8_t UkrFont[];
 extern uint8_t MegaNumbers[];
 extern uint8_t SmallFont[];
-
+double Setpoint2, Input2, Output2;
 unsigned long frametime1 = 0;
 unsigned int interval = 500;
 unsigned int intervalblink = 500;
 unsigned long blinktime = 0;
+bool stepvork = false;
+bool zaslonkastate = false;
 bool frametimeon = false;
 bool blinks= LOW;
 bool winter = false;
 bool leto = false;
 bool pogoda = false;
+bool nastroika = false;
 const int steppoz = 2800;
+const int pomp = 10;
 unsigned short int fan = 11;
 unsigned short int cel;
 unsigned short int cel2;
+short int hourse;
+short int minute;
+short int znach = 1;
 short int stepvalue;
 short int stepperval;
 short int pohibka;
 short int peremenS;
 short int stepmotor;
 short int stepvalueold;
-
+const int buttonPin = 6;
+int buttonPinstate = 0;
+const int koncevik = 7;
+int bootnstate = 0;
+int koncpos = 0;
 short int stepA;
 short int stepB;
 short int stepC;
-
-byte zadtemp = 45; //EEPROM.read(1);
+short int speedfan;
+byte zadtemp = EEPROM.read(1);
 byte menu = EEPROM.read(2);
-
 
 DS1307 rtc(A0, A1);
 Time t;
 OLED  myOLED(SDA, SCL, 8);
-OneWire oneWire(10); // вход датчиков 18b20
-Stepper myStepper(2048,4,3,2,6);
+OneWire oneWire(9); // вход датчиков 18b20
+Stepper myStepper(2048,5,3,2,4);
 double Setpoint, Input, Output;
 DallasTemperature ds(&oneWire);
-DeviceAddress sensor1 = {0x28, 0xFF, 0xA2, 0x81, 0x87, 0x16, 0x3, 0x12};
-DeviceAddress sensor2 = {0x28, 0xFF, 0x2F, 0xF3, 0x87, 0x16, 0x3, 0x9A};
-PID myPID(&Input, &Output, &Setpoint,30,100,10,REVERSE);//создаем ПИД-регулятор
+DeviceAddress sensor2 = {0x28, 0xFF, 0xA2, 0x81, 0x87, 0x16, 0x3, 0x12};
+DeviceAddress sensor1 = {0x28, 0xFF, 0x2F, 0xF3, 0x87, 0x16, 0x3, 0x9A};
+PID myPID(&Input, &Output, &Setpoint,30,100,10,DIRECT);//создаем ПИД-регулятор
+PID myPID2(&Input2, &Output2, &Setpoint2,2,5,1, REVERSE);
+
+
 
 void setup() {
-  myPID.SetOutputLimits(-1500, 1500);
+  myPID.SetOutputLimits(0,2800);
   myStepper.setSpeed(10);
   myOLED.begin();
   rtc.halt(false);
-    //rtc.setDOW(FRIDAY);
-  //  rtc.setTime(20, 32, 0);
-  //  rtc.setDate(17,9, 2017);
+    //rtc.setDOW(THURSDAY);
+    //rtc.setTime(18, 19, 0);
+    //rtc.setDate(12,9, 2017);
   Serial.begin(9600);
-
   ds.begin();
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(fan, OUTPUT);
-  myPID.SetMode(MANUAL);
+  pinMode(pomp, OUTPUT);
+  pinMode(buttonPin, INPUT);
+  pinMode(koncevik,INPUT);
+  myPID.SetMode(AUTOMATIC);
+  myPID2.SetMode(AUTOMATIC);
   }
 
 
@@ -81,8 +98,8 @@ void grad(){
   myOLED.print(String("GSXRF"),  4,  0);
   myOLED.print(String("CFKJY"),  75, 0);
   myOLED.setFont(MegaNumbers);
-  myOLED.print(String(cel), 4, 12);
-  myOLED.print(String(cel2),75,12 );
+  myOLED.print(String(cel2), 4, 13);
+  myOLED.print(String(cel),75,13 );
   myOLED.setFont(UkrFont);
   myOLED.print(String("NTVGTHFNEHF CTYCJHSD"), CENTER, 57);
   myOLED.update();
@@ -113,6 +130,13 @@ if (millis()-frametime1 > interval) {
       myOLED.clrScr();
       myOLED.setFont(UkrFont);
       t = rtc.getTime();
+      if (nastroika == true && houres == true && minutes == false){
+          myOLED.print(String("YFKFINEDFYYZ UJLBY"), CENTER, 0);
+      }
+      if (nastroika == true && houres == false && minutes == true){
+          myOLED.print(String("YFKFINEDFYYZ {DBKBY"), CENTER, 0);
+      }
+      if (nastroika == false && houres == false && minutes == false){
       switch (t.dow)
       {
         case 1:     myOLED.print(String("GJYTLSKJR"), CENTER, 0);       break;
@@ -123,11 +147,12 @@ if (millis()-frametime1 > interval) {
         case 6:     myOLED.print(String("CE<JNF"), CENTER, 0);          break;
         case 7:     myOLED.print(String("YTLSKZ"), CENTER, 0);          break;
       }
+    }
       String stringOne = rtc.getTimeStr();
       myOLED.setFont(MegaNumbers);
-      myOLED.print(stringOne.substring(0, 2), 4, 12);
+      myOLED.print(stringOne.substring(0, 2), 4, 13);
       myOLED.print(String("/"), 51, 12);
-      myOLED.print(stringOne.substring(3, 5), 75, 12);
+      myOLED.print(stringOne.substring(3, 5), 75, 13);
       myOLED.setFont(UkrFont);
       switch (t.mon)
       {
@@ -200,6 +225,13 @@ else{
       myOLED.print(String("-"), 51, 12);
       myOLED.update();
     }
+
+ if (nastroika == true) {
+   interval = 100;
+ }
+ if (nastroika == false){
+   interval = 500;
+ }
 }
 }
 void dg(){
@@ -247,23 +279,38 @@ if (x_direction == -1){
 
 else if (x_direction == 0){
      if (y_direction == -1){
-        if(menu == 2){
+       if (menu ==0 && nastroika == true){
+
+        znach --;
+       }
+       if(menu == 1 && nastroika == true){
+        znach --;
+       }
+        if(menu == 2 && nastroika == false){
+
             zadtemp--;
             EEPROM.update(1,zadtemp);
         }
-        if(menu == 1){
-          myStepper.step(10);
+        if(menu == 1 && nastroika == false){
+          myStepper.step(100);
         }
 }
 else if (y_direction == 0){
           }
 else {
-     if(menu == 2){
+     if(menu == 0 && nastroika == true){
+         znach ++;
+     }
+     if(menu == 1 && nastroika == true){
+         znach ++;
+     }
+     if(menu == 2 && nastroika == false){
+
           zadtemp++;
           EEPROM.update(1,zadtemp);
           }// y_direction == 1
-     if(menu == 1){
-       myStepper.step(10);
+     if(menu == 1 && nastroika == false){
+       myStepper.step(-100);
           }
        }
 }
@@ -290,59 +337,22 @@ else {
      if (menu < 0){
        menu = 0;
      }
+buttonPinstate = digitalRead(buttonPin);
+if (y_direction == 0 && x_direction ==0 && buttonPinstate == LOW){
+  nastroika = true;
+}
+
 }
 
 void  fann(){
-
-unsigned short int  fanstep = 25;
-               int  raznicatemp = zadtemp - cel;
-
-byte fanspeed = 255;
+Input2 = cel;
+Setpoint2 = zadtemp;
+myPID2.Compute();
 //  digitalWrite(fan,255);// виключений
 //digitalWrite(fan,0);// включений
-
-switch (raznicatemp) {
-  case -1://Літо
-    fanspeed = fanspeed - fanstep*3;
-    break;
-  case -2:
-    fanspeed = fanspeed - fanstep*4;
-    break;
-  case -3:
-    fanspeed = fanspeed - fanstep*5;
-    break;
-  case -4:
-    fanspeed = fanspeed - fanstep*6;
-    break;
-  case -5:
-    fanspeed = fanspeed - fanstep*7;
-    break;
-  case -6:
-    fanspeed = fanspeed - fanstep*8;
-    break;
-  case 1://зима
-    fanspeed = 255;
-    break;
-  case 2:
-    fanspeed = fanspeed - fanstep*3;
-   break;
-  case 3:
-    fanspeed = fanspeed - fanstep*4;
-  break;
-  case 4:
-    fanspeed = fanspeed - fanstep*5;
-   break;
-  case 5:
-    fanspeed = fanspeed - fanstep*6;
-   break;
-  case 6:
-    fanspeed = fanspeed - fanstep*7;
-    break;
-  default:
-      fanspeed = 255;
-  Serial.println(fanspeed);
-  }
-analogWrite(fan,fanspeed);
+speedfan = Output2;
+analogWrite(fan,speedfan);
+Serial.println(speedfan);
 }
 
 void zagruzka(){
@@ -351,14 +361,15 @@ void zagruzka(){
   myOLED.print(String("GTHTDSHRF"),  CENTER,  20);
   myOLED.print(String("CBCNTVB"),  CENTER,  40);
   myOLED.update();
-
 }
+
+
 void salon() {
     myOLED.clrScr();
     myOLED.setFont(UkrFont);
     myOLED.print(String("PFLFYF NTVGTHFNEHF"),  CENTER,  0);
     myOLED.setFont(MegaNumbers);
-    myOLED.print(String(zadtemp),  CENTER,  12);
+    myOLED.print(String(zadtemp),  CENTER,  13);
   if(winter == true){
     myOLED.setFont(UkrFont);
     myOLED.print(String("Ghjuhsd Fdnj"),  CENTER,  57);
@@ -367,71 +378,59 @@ void salon() {
     myOLED.setFont(UkrFont);
     myOLED.print(String("Ht;bv Ksnj"),  CENTER,  57);
   }
-  myOLED.update();
+    myOLED.update();
 }
 
 
 void m(){
-  if (menu == 0){
+  if (menu == 0 && nastroika == false){
   calendar();
   EEPROM.update(2, menu);
   }
- if (menu == 1){
+ if (menu == 1 && nastroika == false){
   grad();
   EEPROM.update(2, menu);
   }
- if (menu == 2){
+ if (menu == 2 && nastroika == false){
   salon();
   EEPROM.update(2, menu);
  }
 }
 
-int EEPROMread(int addr){
-  byte raw[2];
-  for(byte i = 0; i < 2; i++) raw[i] = EEPROM.read(addr+i);
-  int &num = (int&)raw;
-  return num;
-}
-
-void EEPROMwrite(int addr, int num){
-  byte raw[4];
-  (int&)raw = num;
-   for(byte i = 0; i < 4; i++) EEPROM.write(addr+i, raw[i]);
- }
+void sezon(){
 
 
-void steps(){
+  bootnstate = digitalRead(buttonPin);
+  koncpos = digitalRead(koncevik);
   if(cel <=18){
     winter = true;
     leto = false;
+    digitalWrite(pomp, HIGH);
   }
   if (cel >=19){
     winter = false;
     leto = true;
+    digitalWrite(pomp, LOW);
     }
 
 
 int stepmotor = Output;
-stepmotor = map(stepmotor, -1500,1500,0,2800);
-stepB = EEPROMread(5);
-stepvalueold = EEPROMread(10);
+stepmotor = map(stepmotor, 0,2800,0,-2800);
 stepC = stepmotor - stepB;
 myStepper.step(stepC);
 stepB = stepB + stepC;
 
 
 if (stepB != stepvalueold){
-  EEPROMwrite(5,stepB);
   stepvalueold = stepB;
-  EEPROMwrite(10, stepvalueold);
+  digitalWrite( 5, LOW );
   digitalWrite( 4, LOW );
   digitalWrite( 3, LOW );
   digitalWrite( 2, LOW );
-  digitalWrite( 6, LOW );
+  Serial.println(stepvalueold);
 }
 Serial.println(stepB);
 }
-////myStepper.step(pohibka);
 
 void pidreg(){
   Input = cel;
@@ -440,25 +439,86 @@ void pidreg(){
   myPID.Compute();
   }
 
-void loop() {
-
-  if(millis() <= 3000){
-    zagruzka();
+void n(){
+    if (menu == 0 && nastroika == true){
+    calendar();
+    houres = true;
+    minutes = false;
+    t = rtc.getTime();
+    hourse = t.hour;
+    minute = t.min;
+    if (houres == true && minutes == false){
+      if (znach >=24){
+        znach = 1;
+      }
+      Serial.println(hourse);
+      if (znach != hourse){
+        rtc.setTime(znach, minute, 0);
+      }
+    }
+    }
+   if (menu == 1 && nastroika == true){
+     t = rtc.getTime();
+     hourse = t.hour;
+     minute = t.min;
+     calendar();
+     houres  = false;
+     minutes = true;
+     if (houres == false && minutes == true){
+       if (znach >=60){
+         znach = 1;
+       }
+       Serial.println(hourse);
+       if (znach != minutes){
+         rtc.setTime(hourse, znach, 0);
+       }
+     }
+    }
+   if (menu == 2 && nastroika == true){
+     calendar();
+     houres  = false;
+     minutes = false;
+     nastroika = false;
+   }
   }
-  else{
-    blink();
+
+
+
+
+
+
+
+
+void loop() {
+  koncpos = digitalRead(koncevik);
+  blink();
+  if(stepvork == false){
+    zagruzka();
+    if (koncpos == LOW){
+      myStepper.step(200);
+      Serial.println(200);
+    }
+    if (koncpos == HIGH && zaslonkastate == false){
+      zaslonkastate = true;
+      stepvork = true;
+      }
+  }
+if (stepvork == true && zaslonkastate == true){
+  Serial.println();
+    dalas();
     dg();
+    sezon();
+    pidreg();
+    fann();
+  }
+  if(nastroika == false && stepvork == true && zaslonkastate == true){
     m();
   }
-  dalas();
-  pidreg();
-  steps();
-  if(millis() > 80000){
-    myPID.SetMode(AUTOMATIC);
+  if(nastroika == true && stepvork == true && zaslonkastate == true){
+    n();
   }
-  fann();
 
-  Serial.println(cel);
-  Serial.println(cel2);
+  //Serial.println(cel);
+  //Serial.println(cel2);
 
 }
